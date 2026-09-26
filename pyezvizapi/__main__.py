@@ -79,6 +79,7 @@ from .stream import (
     mpeg_ps_decryptable_prefix_length,
     rtp_payload,
 )
+from .token_store import load_token_file, save_token_file
 
 _LOGGER = logging.getLogger(__name__)
 _REAL_EZVIZ_CLIENT = EzvizClient
@@ -5128,10 +5129,10 @@ def _load_token_file(path: str | None) -> dict[str, Any] | None:
     if not p.exists():
         return None
     try:
-        return cast(dict[str, Any], json.loads(p.read_text(encoding="utf-8")))
+        return load_token_file(p)
     except (
         OSError,
-        json.JSONDecodeError,
+        ValueError,
     ):  # pragma: no cover - tolerate malformed file
         _LOGGER.warning("Failed to read token file: %s", p)
         return None
@@ -5143,7 +5144,7 @@ def _save_token_file(path: str | None, token: dict[str, Any]) -> None:
         return
     p = Path(path)
     try:
-        p.write_text(json.dumps(token, indent=2), encoding="utf-8")
+        save_token_file(p, token)
         _LOGGER.info("Saved token to %s", p)
     except OSError:  # pragma: no cover - filesystem issues
         _LOGGER.warning("Failed to save token file: %s", p)

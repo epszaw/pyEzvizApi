@@ -126,10 +126,19 @@ Expected auth exceptions:
 - parse comma-separated `ext` strings into named fields;
 - coerce known numeric `ext` fields to integers when possible;
 - preserve unknown/top-level message fields;
-- raise `PyEzvizError` for malformed JSON.
+- raise `PyEzvizError` for malformed, non-object, non-UTF-8, or oversized payloads;
+- leave the MQTT connection running when one payload is rejected.
 
 `messages_by_device` stores the most recent decoded payload per device serial
 using bounded LRU-like behavior.
+
+Optional device-serial and alert-type allowlists and bounded message-identity
+deduplication may filter callback delivery when explicitly enabled. They remain
+disabled by default where filtering would change existing integration behavior.
+
+`EzvizClient.get_mqtt_client()` continues to reuse its cached client when called
+again without options. Explicit options that conflict with the cached transport
+or message policy raise `ValueError` instead of silently weakening TLS or filters.
 
 ## Deprecation guidance
 

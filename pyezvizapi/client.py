@@ -155,7 +155,11 @@ from .local_stream import (
     summarize_idmx_h264_local_packets,
 )
 from .models import EzvizDeviceRecord, build_device_records_map
-from .mqtt import MQTTClient
+from .mqtt import (
+    MQTTClient,
+    MqttMessagePolicy,
+    MqttTransportConfig,
+)
 from .utils import convert_to_dict, decrypt_image, deep_merge
 
 _LOGGER = logging.getLogger(__name__)
@@ -533,6 +537,12 @@ class EzvizClient:
         self._light_bulbs: dict[str, Any] = {}
         self._smart_plugs: dict[str, Any] = {}
         self.mqtt_client: MQTTClient | None = None
+        self._mqtt_client_config: tuple[
+            Callable[[dict[str, Any]], None] | None,
+            int,
+            MqttMessagePolicy,
+            MqttTransportConfig,
+        ] | None = None
         self._debug_request_counters: dict[str, int] = {}
 
     def _login(self, smscode: int | None = None) -> JsonDict:
@@ -6197,16 +6207,57 @@ class EzvizClient:
         return True
 
     def get_mqtt_client(
-        self, on_message_callback: Callable[[dict[str, Any]], None] | None = None
+        self,
+        on_message_callback: Callable[[dict[str, Any]], None] | None = None,
+        *,
+        max_messages: int | None = None,
+        message_policy: MqttMessagePolicy | None = None,
+        transport: MqttTransportConfig | None = None,
     ) -> MQTTClient:
         """Return a configured MQTTClient using this client's session."""
-        if self.mqtt_client is None:
-            self.mqtt_client = MQTTClient(
-                token=cast(dict[Any, Any], self._token),
-                session=self._session,
-                timeout=self._timeout,
-                on_message_callback=on_message_callback,
+        if self.mqtt_client is not None:
+            config = self._mqtt_client_config
+            if config is None:  # pragma: no cover - defensive external assignment
+                raise ValueError("Existing MQTT client configuration is unknown")
+            callback, configured_max_messages, configured_policy, configured_transport = (
+                config
             )
+            conflicts = any(
+                (
+                    on_message_callback is not None
+                    and on_message_callback != callback,
+                    max_messages is not None
+                    and max_messages != configured_max_messages,
+                    message_policy is not None
+                    and message_policy != configured_policy,
+                    transport is not None
+                    and transport != configured_transport,
+                )
+            )
+            if conflicts:
+                raise ValueError(
+                    "MQTT client already exists with different configuration"
+                )
+            return self.mqtt_client
+
+        effective_max_messages = max_messages if max_messages is not None else 1000
+        effective_policy = message_policy or MqttMessagePolicy()
+        effective_transport = transport or MqttTransportConfig()
+        self.mqtt_client = MQTTClient(
+            token=cast(dict[Any, Any], self._token),
+            session=self._session,
+            timeout=self._timeout,
+            on_message_callback=on_message_callback,
+            max_messages=effective_max_messages,
+            message_policy=effective_policy,
+            transport=effective_transport,
+        )
+        self._mqtt_client_config = (
+            on_message_callback,
+            effective_max_messages,
+            effective_policy,
+            effective_transport,
+        )
         return self.mqtt_client
 
     def _get_page_list(self) -> Any:

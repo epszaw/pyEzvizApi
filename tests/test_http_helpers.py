@@ -34,6 +34,7 @@ from pyezvizapi.local_stream import (
     HcNetSdkCommandPortMultiSocketPlan,
     HcNetSdkCommandPortSocketStep,
 )
+from pyezvizapi.mqtt import MqttMessagePolicy, MqttTransportConfig
 
 DEFAULT_SAVE_TIMEOUT = 10.0
 HCNETSDK_SAVE_DURATION = 3.0
@@ -4045,7 +4046,16 @@ def test_get_mqtt_client_reuses_cached_instance(monkeypatch) -> None:
     def callback(payload: dict[str, Any]) -> None:
         return None
 
-    first = client.get_mqtt_client(callback)
+    message_policy = MqttMessagePolicy(
+        max_payload_size=1024,
+        allowed_device_serials={"CAM123"},
+        allowed_alert_types={2402, 2403},
+        deduplicate_messages=True,
+    )
+    first = client.get_mqtt_client(
+        callback,
+        message_policy=message_policy,
+    )
     second = client.get_mqtt_client()
 
     assert first is second
@@ -4054,6 +4064,26 @@ def test_get_mqtt_client_reuses_cached_instance(monkeypatch) -> None:
     assert created[0]["session"] is client._session
     assert created[0]["timeout"] == 1
     assert created[0]["on_message_callback"] is callback
+    assert created[0]["message_policy"] is message_policy
+
+
+def test_get_mqtt_client_rejects_conflicting_cached_transport(monkeypatch) -> None:
+    client = _client()
+
+    class FakeMQTTClient:
+        def __init__(self, **_kwargs: Any) -> None:
+            return None
+
+    monkeypatch.setattr("pyezvizapi.client.MQTTClient", FakeMQTTClient)
+
+    first = client.get_mqtt_client()
+
+    with pytest.raises(ValueError, match="different configuration"):
+        client.get_mqtt_client(
+            transport=MqttTransportConfig(port=8883, use_tls=True)
+        )
+
+    assert client.get_mqtt_client() is first
 
 
 def test_get_alarminfo_builds_request_and_retries_server_busy(monkeypatch) -> None:

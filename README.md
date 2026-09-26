@@ -59,6 +59,8 @@ pyezvizapi devices status --json
 - Saved token precedence: if `--token-file` contains a session token, the CLI reuses
   it even when username/password are also supplied. This preserves MFA/elevated
   session state; a fresh credential login may require MFA again.
+- Saved tokens are written atomically with owner-only (`0600`) permissions on
+  POSIX systems. Keep the containing directory owner-only as well.
 - MFA: The CLI prompts for a code if required by your account
 - Region: `-r/--region` overrides the default region (`apiieu.ezvizlife.com`)
 
@@ -662,6 +664,50 @@ python examples/mqtt_listener.py --save-token
 # Explicit credentials (not recommended for shared terminals)
 python examples/mqtt_listener.py -u USER -p PASS --save-token
 ```
+
+For a long-running service, keep the Paho callback short and hand accepted events
+to the service's own queue:
+
+```python
+from queue import SimpleQueue
+
+from pyezvizapi import (
+    EzvizClient,
+    MqttMessagePolicy,
+    load_token_file,
+    save_token_file,
+)
+
+token_path = "/var/lib/your-service/ezviz_token.json"
+client = EzvizClient(token=load_token_file(token_path))
+client.login()  # Refresh session and refresh-session tokens over HTTPS.
+save_token_file(token_path, client.export_token())
+events = SimpleQueue()
+mqtt = client.get_mqtt_client(
+    events.put,
+    message_policy=MqttMessagePolicy(
+        allowed_device_serials={"YOUR_DOORBELL_SERIAL"},
+        deduplicate_messages=True,
+    ),
+)
+mqtt.connect()
+```
+
+Start without an alert-type allowlist and record the codes emitted by the actual
+device. After confirming them, `allowed_alert_types={2402, 2403}` can restrict
+delivery to the commonly observed motion and person categories without risking
+silent loss from a model-specific code.
+
+Malformed, non-object, non-UTF-8, and oversized payloads are discarded without
+stopping the listener. `mqtt.connected`, `mqtt.last_message_at`, and
+`mqtt.disconnected_seconds` expose health state. Paho handles ordinary reconnects;
+after a prolonged disconnect, a service watchdog can call `mqtt.restart()` to
+repeat EZVIZ push registration and rebuild the broker connection.
+
+The app-observed broker port remains plaintext `1882` by default. If a regional
+`pushAddr` is confirmed to support MQTT-over-TLS, configure its verified port with
+`transport=MqttTransportConfig(port=..., use_tls=True)`. TLS mode uses normal CA
+and hostname verification and never falls back to plaintext.
 
 ### pagelist
 

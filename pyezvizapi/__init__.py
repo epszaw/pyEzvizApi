@@ -638,7 +638,14 @@ if TYPE_CHECKING:
         EzvizDeviceRecord,
         build_device_records_map,
     )
-    from .mqtt import EzvizToken, MQTTClient, MqttData, ServiceUrls
+    from .mqtt import (
+        EzvizToken,
+        MQTTClient,
+        MqttData,
+        MqttMessagePolicy,
+        MqttTransportConfig,
+        ServiceUrls,
+    )
     from .smart_plug import EzvizSmartPlug
     from .stream import (
         StopStreamResponse,
@@ -677,6 +684,7 @@ if TYPE_CHECKING:
         summarize_vtm_packet,
     )
     from .test_cam_rtsp import TestRTSPAuth
+    from .token_store import TOKEN_FILE_MODE, load_token_file, save_token_file
 
 _EXPORTS = {
     "AlarmDetectHumanCar": "constants",
@@ -948,7 +956,10 @@ _EXPORTS = {
     "MessageFilterType": "constants",
     "mpeg_ps_complete_prefix_length": "stream",
     "mpeg_ps_decryptable_prefix_length": "stream",
+    "load_token_file": "token_store",
     "MqttData": "mqtt",
+    "MqttMessagePolicy": "mqtt",
+    "MqttTransportConfig": "mqtt",
     "NightVisionMode": "constants",
     "PyEzvizError": "exceptions",
     "ServiceUrls": "mqtt",
@@ -957,6 +968,7 @@ _EXPORTS = {
     "StreamTransport": "stream",
     "StopStreamResponse": "stream",
     "SupportExt": "constants",
+    "TOKEN_FILE_MODE": "token_store",
     "TestRTSPAuth": "test_cam_rtsp",
     "VtduInfoResponse": "stream",
     "VtduStreamResponse": "stream",
@@ -1284,6 +1296,7 @@ _EXPORTS = {
     "port_security_port_enabled": "feature",
     "resolve_channel": "feature",
     "rtp_payload": "stream",
+    "save_token_file": "token_store",
     "read_ezviz_interleaved_rtp_frame": "hcnetsdk",
     "read_ezviz_interleaved_rtp_frame_after_prefix": "hcnetsdk",
     "read_ezviz_local_sdk_frame": "hcnetsdk",

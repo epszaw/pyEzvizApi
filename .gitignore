@@ -126,6 +126,11 @@ venv.bak/
 # Repository monitor local output
 .repo-watch/
 
+# Local EZVIZ credentials and MQTT diagnostics
+ezviz_token.json
+mqtt_messages.jsonl
+mqtt_raw_messages.jsonl
+
 # Local crash dumps
 core.*
 

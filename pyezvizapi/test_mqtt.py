@@ -15,11 +15,12 @@ import logging
 from pathlib import Path
 import sys
 import time
-from typing import Any, cast
+from typing import Any
 
 from .client import EzvizClient
 from .exceptions import EzvizAuthVerificationCode, PyEzvizError
 from .mqtt import MQTTClient
+from .token_store import load_token_file, save_token_file
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 _LOGGER = logging.getLogger(__name__)
@@ -80,8 +81,8 @@ def _load_token_file(path: str | None) -> dict[str, Any] | None:
     if not p.exists():
         return None
     try:
-        return cast(dict[str, Any], json.loads(p.read_text(encoding="utf-8")))
-    except (OSError, json.JSONDecodeError):
+        return load_token_file(p)
+    except (OSError, ValueError):
         _LOGGER.warning("Failed to read token file: %s", p)
         return None
 
@@ -91,7 +92,7 @@ def _save_token_file(path: str | None, token: dict[str, Any]) -> None:
         return
     p = Path(path)
     try:
-        p.write_text(json.dumps(token, indent=2), encoding="utf-8")
+        save_token_file(p, token)
         _LOGGER.info("Saved token to %s", p)
     except OSError:
         _LOGGER.warning("Failed to save token file: %s", p)

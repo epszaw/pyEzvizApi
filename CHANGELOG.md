@@ -46,6 +46,11 @@ This project follows [Semantic Versioning](https://semver.org/) for published re
 - Added pure-Python client convenience reads for safe HCNetSDK soft/hardware, playback-conversion, and PTZ ability fields.
 - Added binary-confirmed command-port mapping plus decoded and summary helpers for `NET_DVR_USER_V30` user/password/right-table reads; decoded password bytes are hidden from default object reprs.
 - Added APK-matched HP7/doorbell helpers for `REMOTE_UNLOCK`, parsed `ChimeMusic` status optionals, chime type/duration info, and the chime indicator-light switch.
+- Added bounded MQTT payload validation, optional device/alert allowlists, message
+  deduplication, connection-health timestamps, full registration restart support,
+  and opt-in strictly verified MQTT-over-TLS transport configuration.
+- Added atomic owner-only token-file persistence helpers for long-running services
+  and CLI tools.
 
 ### Fixed
 
@@ -61,6 +66,14 @@ This project follows [Semantic Versioning](https://semver.org/) for published re
   XML requests to `ClientType=3`, exposing an explicit `EzvizCAS` client type
   override, and reading complete framed CAS socket responses instead of relying
   on a single partial `recv()`.
+- Fixed malformed MQTT payloads stopping the complete push client; invalid,
+  non-object, non-UTF-8, and oversized messages are now discarded while the
+  listener remains active.
+- Fixed MQTT registration/start/stop error handling so connection failures are
+  reported at the network request boundary instead of during response decoding.
+- Fixed MQTT lifecycle cleanup so duplicate starts cannot orphan a Paho loop,
+  failed remote deregistration remains retryable, and conflicting cached TLS or
+  filtering options are rejected instead of silently ignored.
 
 - Fixed the DVR config sidecar to exit nonzero on failed `NET_DVR_GetDVRConfig` reads before emitting output buffers.
 
